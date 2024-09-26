@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualizador de Ponto Médio - Melhorado</title>
+    <style>
+        canvas {
+            border: 1px solid black;
+        }
+        button {
+            margin: 5px;
+        }
+        .status {
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h2>Visualizador de Ponto Médio - Melhorado</h2>
+    <div class="status" id="statusMessage">Selecione um ponto ou clique no canvas para adicionar um novo ponto</div>
+    <button id="undoBtn">Voltar um Passo</button>
+    <button id="redoBtn">Refazer um Passo</button>
+    <button id="resetBtn">Reiniciar Desenho</button>
+    <canvas id="canvas" width="600" height="400"></canvas>
+
+    <div>
+        <button onclick="setMode('point')">Ponto Médio</button>
+        <button onclick="setMode('segment')">Segmento de Reta</button>
+        <button onclick="setMode('infiniteLine')">Reta Infinita</button>
+        <button onclick="setMode('circle')">Circunferência</button>
+        <button onclick="setMode('intersection')">Interseção</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        let points = [];
+        let midPoints = [];
+        let selectedPoints = [];
+        let pointLabels = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        let labelIndex = 0;
+        let history = [];
+        let redoStack = [];
+        let draggingPoint = null;
+        let hoveredPoint = null;
+        let lines = [];
+        let circles = [];
+        let infiniteLines = [];
+        let intersections = [];
+        let mode = 'point'; // Modo padrão: Ponto
+        const statusMessage = document.getElementById('statusMessage');
+
+        document.getElementById('undoBtn').addEventListener('click', undo);
+        document.getElementById('redoBtn').addEventListener('click', redo);
+        document.getElementById('resetBtn').addEventListener('click', resetCanvas);
+
+        canvas.addEventListener('mousedown', onMouseDown);
+        canvas.addEventListener('mouseup', onMouseUp);
+        canvas.addEventListener('mousemove', onMouseMove);
+        canvas.addEventListener('click', onClick);  // Clique simples para seleção
+
+        function setMode(newMode) {
+            mode = newMode;
+            statusMessage.textContent = `Modo: ${newMode}`;
+        }
+
+        function onMouseDown(e) {
+            const { x, y } = getMousePos(e);
+            draggingPoint = findPoint(x, y);
+
+            if (!draggingPoint && selectedPoints.length === 0 && mode === 'point') {
+                saveState();
+                points.push({ x, y, label: pointLabels[labelIndex++] });
+                statusMessage.textContent = "Ponto criado. Selecione outro ponto ou clique no vazio para continuar.";
+                draw();
+            }
+        }
+
+        function onMouseUp() {
+            draggingPoint = null;
+        }
+
+        function onMouseMove(e) {
+            const { x, y } = getMousePos(e);
+            hoveredPoint = findPoint(x, y); 
+            if (draggingPoint) {
+                draggingPoint.x = x;
+                draggingPoint.y = y;
+                updateMidPoints();
+                draw();
+            } else {
+                draw(); 
+            }
+        }
+
+        function onClick(e) {
+            const { x, y } = getMousePos(e); 
+            const selectedPoint = findPoint(x, y); 
+
+            if (mode === 'point') {
+                if (selectedPoint && selectedPoints.includes(selectedPoint)) {
+                    selectedPoints = selectedPoints.filter(point => point !== selectedPoint); 
+                    statusMessage.textContent = `Ponto ${selectedPoint.label} desmarcado.`; 
+                } else if (selectedPoint) {
+                    selectedPoints.push(selectedPoint);
+                    statusMessage.textContent = `Ponto ${selectedPoint.label} selecionado.`;
+                    if (selectedPoints.length === 2) {
+                        const point1 = selectedPoints[0];
+                        const point2 = selectedPoints[1];
+                        saveState();
+                        addMidPointBetween(point1, point2);
+                        selectedPoints = []; 
+                        statusMessage.textContent = "Selecione um ponto ou clique no canvas para adicionar um novo ponto"; 
+                        draw();
+                    }
+                } else if (selectedPoints.length === 1) {
+                    const point1 = selectedPoints[0];
+                    const newPoint = { x, y, label: pointLabels[labelIndex++] };
+                    saveState();
+                    points.push(newPoint); 
+                    addMidPointBetween(point1, newPoint);
+                    selectedPoints = [];
+                    statusMessage.textContent = "Selecione um ponto ou clique no canvas para adicionar um novo ponto"; 
+                    draw();
+                }
+            } else if (mode === 'segment' && selectedPoints.length < 2) {
+                if (selectedPoint) {
+                    selectedPoints.push(selectedPoint);
+                } else {
+                    selectedPoints.push({ x, y, label: pointLabels[labelIndex++] });
+                    points.push(selectedPoints[selectedPoints.length - 1]);
+                }
+                if (selectedPoints.length === 2) {
+                    lines.push({ point1: selectedPoints[0], point2: selectedPoints[1] });
+                    selectedPoints = [];
+                    draw();
+                }
+            } else if (mode === 'circle' && selectedPoints.length < 2) {
+                if (selectedPoint) {
+                    selectedPoints.push(selectedPoint);
+                } else {
+                    selectedPoints.push({ x, y, label: pointLabels[labelIndex++] });
+                    points.push(selectedPoints[selectedPoints.length - 1]);
+                }
+                if (selectedPoints.length === 2) {
+                    const center = selectedPoints[0];
+                    const edge = selectedPoints[1];
+                    const radius = Math.hypot(center.x - edge.x, center.y - edge.y);
+                    circles.push({ center, radius });
+                    selectedPoints = [];
+                    draw();
+                }
+            } else if (mode === 'infiniteLine' && selectedPoints.length < 2) {
+                if (selectedPoint) {
+                    selectedPoints.push(selectedPoint);
+                } else {
+                    selectedPoints.push({ x, y, label: pointLabels[labelIndex++] });
+                    points.push(selectedPoints[selectedPoints.length - 1]);
+                }
+                if (selectedPoints.length === 2) {
+                    infiniteLines.push({ point1: selectedPoints[0], point2: selectedPoints[1] });
+                    selectedPoints = [];
+                    draw();
+                }
+            } else if (mode === 'intersection' && lines.length >= 2) {
+                const line1 = lines[0];
+                const line2 = lines[1];
+                const intersectionPoint = calculateIntersection(line1, line2);
+                if (intersectionPoint) {
+                    intersections.push(intersectionPoint);
+                    draw();
+                }
+            }
+        }
+
+        function getMousePos(e) {
+            const rect = canvas.getBoundingClientRect();
+            return {
+                x: e.clientX - rect.left,
+                y: e.clientY - rect.top
+            };
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            points.forEach(point => drawCircle(point.x, point.y, 'blue', point.label)); 
+            lines.forEach(line => drawSegment(line.point1, line.point2)); 
+            circles.forEach(circle => drawCircleShape(circle.center, circle.radius)); 
+            infiniteLines.forEach(line => drawInfiniteLine(line.point1, line.point2)); 
+            intersections.forEach(intersection => drawCircle(intersection.x, intersection.y, 'green', intersection.label)); 
+            midPoints.forEach(point => drawCircle(point.x, point.y, 'red', point.label)); 
+        }
+
+        function drawCircle(x, y, color, label) {
+            ctx.beginPath(); 
+            ctx.arc(x, y, 5, 0, 2 * Math.PI);
+            ctx.fillStyle = color; 
+            ctx.fill(); 
+            ctx.closePath(); 
+
+            ctx.font = '12px Arial'; 
+            ctx.fillStyle = 'black'; 
+            ctx.fillText(label, x + 8, y - 8);
+        }
+
+        function drawCircleShape(center, radius) {
+            ctx.beginPath();
+            ctx.arc(center.x, center.y, radius, 0, 2 * Math.PI);
+            ctx.stroke();
+        }
+
+        function drawSegment(point1, point2) {
+            ctx.beginPath();
+            ctx.moveTo(point1.x, point1.y);
+            ctx.lineTo(point2.x, point2.y);
+            ctx.stroke();
+        }
+
+        function drawInfiniteLine(point1, point2) {
+            const slope = (point2.y - point1.y) / (point2.x - point1.x);
+            const intercept = point1.y - slope * point1.x;
+            const x1 = 0;
+            const y1 = intercept;
+            const x2 = canvas.width;
+            const y2 = slope * x2 + intercept;
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
+        }
+
+        function calculateIntersection(line1, line2) {
+            const { point1: p1, point2: p2 } = line1;
+            const { point1: p3, point2: p4 } = line2;
+
+            const denom = (p1.x - p2.x) * (p3.y - p4.y) - (p1.y - p2.y) * (p3.x - p4.x);
+            if (denom === 0) return null;
+
+            const intersectX = ((p1.x * p2.y - p1.y * p2.x) * (p3.x - p4.x) - (p1.x - p2.x) * (p3.x * p4.y - p3.y * p4.x)) / denom;
+            const intersectY = ((p1.x * p2.y - p1.y * p2.x) * (p3.y - p4.y) - (p1.y - p2.y) * (p3.x * p4.y - p3.y * p4.x)) / denom;
+
+            return { x: intersectX, y: intersectY, label: `I${pointLabels[labelIndex++]}` };
+        }
+
+        function findPoint(x, y) {
+            return points.concat(midPoints).find(p => Math.hypot(p.x - x, p.y - y) < 10);
+        }
+
+        function addMidPointBetween(point1, point2) {
+            const midX = (point1.x + point2.x) / 2;
+            const midY = (point1.y + point2.y) / 2;
+            let midPoint = midPoints.find(p => p.x === midX && p.y === midY);
+            if (!midPoint) {
+                midPoint = {
+                    x: midX, 
+                    y: midY, 
+                    isMidPoint: true, 
+                    parents: [point1, point2],
+                    label: pointLabels[labelIndex++]
+                };
+                midPoints.push(midPoint); 
+            } else {
+                midPoint.parents = [point1, point2];
+            }
+        }
+
+        function updateMidPoints() {
+            midPoints.forEach(midPoint => {
+                const parent1 = midPoint.parents[0];
+                const parent2 = midPoint.parents[1];
+                midPoint.x = (parent1.x + parent2.x) / 2;
+                midPoint.y = (parent1.y + parent2.y) / 2;
+            });
+        }
+
+        function undo() {
+            if (history.length > 0) {
+                redoStack.push({
+                    points: [...points],
+                    midPoints: [...midPoints]
+                });
+                const lastState = history.pop(); 
+                points = lastState.points;
+                midPoints = lastState.midPoints;
+                draw(); 
+            }
+        }
+
+        function redo() {
+            if (redoStack.length > 0) {
+                const nextState = redoStack.pop(); 
+                saveState(); 
+                points = nextState.points; 
+                midPoints = nextState.midPoints; 
+                draw();
+            }
+        }
+
+        function saveState() {
+            history.push({
+                points: [...points],
+                midPoints: [...midPoints]
+            });
+            redoStack = [];
+        }
+
+        function resetCanvas() {
+            saveState();
+            points = [];
+            midPoints = [];
+            selectedPoints = [];
+            labelIndex = 0;
+            statusMessage.textContent = "Selecione um ponto ou clique no canvas para adicionar um novo ponto";
+            draw();
+        }
+
+        draw(); 
+    </script>
+</body>
+</html>

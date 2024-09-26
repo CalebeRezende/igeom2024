@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+  <title>Proof of Concept - iGeom - Web</title>
+  <link rel="stylesheet" href="css/bootstrap.min.css" />
+  <link rel="stylesheet" href="css/app.css" />
+  <link rel="stylesheet" href="css/icons.css" />
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+    }
+    .wrapper {
+      display: flex;
+    }
+    #sidebar {
+      width: 250px;
+      background-color: #343a40;
+      color: white;
+      padding: 15px;
+    }
+    #content {
+      flex-grow: 1;
+      padding: 20px;
+    }
+    .tools {
+      margin: 20px 0;
+    }
+    .tool {
+      display: block;
+      margin-bottom: 10px;
+      padding: 10px;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      cursor: pointer;
+      width: 100%;
+    }
+    .tool:hover {
+      background-color: #0056b3;
+    }
+    #stages {
+      border: 1px solid #ccc;
+      width: 100%;
+      height: 500px;
+      background-color: #f9f9f9;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <nav id="sidebar">
+      <div id="tool-bar">
+        <h3>Ferramentas</h3>
+        <div id="tools" class="tools">
+          <button id="btn-point" class="tool">
+            Adicionar Ponto
+          </button>
+          <button id="btn-segment" class="tool">
+            Criar Ponto Médio
+          </button>
+          <button id="btn-line" class="tool">
+            Criar Reta Completa
+          </button>
+          <button id="btn-circle" class="tool">
+            Criar Circunferência
+          </button>
+        </div>
+      </div>
+    </nav>
+    <div id="content">
+      <h2>Documento Atual: New Document 1</h2>
+      <div id="stages"></div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/konva@8.3.10/konva.min.js"></script>
+  <script src="js/jquery.min.js"></script>
+  <script src="js/bootstrap.min.js"></script>
+
+  <script>
+    // Configura o canvas com 'willReadFrequently' para otimizar leitura frequente de dados
+    var canvas = document.getElementById('stages');
+    var context = canvas.getContext('2d', { willReadFrequently: true });
+  </script>
+
+  <script src="js/main.js"></script>
+</body>
+</html>

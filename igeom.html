@@ -52,6 +52,9 @@
       <li class="nav-item" role="presentation">
         <button class="nav-link" id="logs-tab" data-bs-toggle="tab" data-bs-target="#logs" type="button" role="tab" aria-controls="logs" aria-selected="false">Depuração e Logs</button>
       </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="hierarquia-tab" data-bs-toggle="tab" data-bs-target="#hierarquia" type="button" role="tab" aria-controls="hierarquia" aria-selected="false">Hierarquia</button>
+      </li>
     </ul>
 
     <div class="tab-content" id="myTabContent">
@@ -143,6 +146,45 @@
           <li><strong>Modo Debug:</strong> Habilite para visualizar detalhes adicionais durante o uso.</li>
           <li><strong>Exportação de Logs:</strong> Salve os logs em um arquivo para análise posterior.</li>
         </ul>
+      </div>
+
+      <div class="tab-pane fade" id="hierarquia" role="tabpanel" aria-labelledby="hierarquia-tab">
+        <h3>Hierarquia do Sistema</h3>
+        <p>Detalhes sobre os componentes, fluxos e pontos de gerenciamento de dados no iGeom:</p>
+        <pre>
+Stage Manager (Stage)
+│
+├── Layer Manager (Layer)
+│   └── Agregador (Aggregator)
+│       ├── Reta (Line)
+│       ├── Ponto (Point)
+│       ├── Segmento de Reta (Line Segment)
+│       ├── Ponto Médio (Middle Point)
+│       ├── Circunferência (Circumference)
+│       └── Ponto de Interseção (Intersection Point)
+Root
+├── src
+│   ├── app
+│   │   ├── components
+│   │   │   ├── contextmenu.js
+│   │   │   ├── intersection.js
+│   │   │   ├── point.js
+│   │   │   ├── line.js
+│   │   │   ├── circle.js
+│   │   │   └── segment.js
+│   │   ├── core
+│   │   │   ├── application
+│   │   │   │   ├── contextmenu.js
+│   │   │   │   ├── object_registry.js
+│   │   │   │   └── core_logic.js
+│   │   │   └── utilities
+│   │   ├── styles
+│   │   ├── object_creator.js
+│   │   └── canvas_handler.js
+│   ├── index.html
+│   ├── main.js
+│   └── utils.js
+        </pre>
       </div>
     </div>
 
